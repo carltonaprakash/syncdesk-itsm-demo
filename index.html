@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SyncDesk: ServiceNow + Jira workflow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#f6efe4;--sf:#fffaf2;--ink:#2a1418;--mut:#75585c;--ln:#e3d5c3;--sn:#7b1e34;--snb:#f4dfe2;--jr:#3f5f86;--jrb:#dfe7f1;--red:#cf4330;--amb:#b8741a;--ok:#3f7d4e;--okb:#dcebdc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c0f13;--sf:#2a1a1f;--ink:#f3e9da;--mut:#b9a39a;--ln:#46303a;--sn:#e58ea0;--snb:#3d1c27;--jr:#8fb0dc;--jrb:#1d2a3d;--red:#ff8a73;--amb:#f0b55a;--ok:#6fcf8f;--okb:#1e3626;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1c0f13;--sf:#2a1a1f;--ink:#f3e9da;--mut:#b9a39a;--ln:#46303a;--sn:#e58ea0;--snb:#3d1c27;--jr:#8fb0dc;--jrb:#1d2a3d;--red:#ff8a73;--amb:#f0b55a;--ok:#6fcf8f;--okb:#1e3626;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 Manrope,system-ui,sans-serif}
+header{padding:20px 20px 0;max-width:1100px;margin:auto}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+header p{margin:4px 0 14px;color:var(--mut);max-width:62ch}
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--ln);overflow-x:auto}
+.tab{background:none;border:0;padding:10px 18px;font:600 15px Manrope,system-ui,sans-serif;color:var(--mut);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab[aria-selected=true].sn{color:var(--sn);border-color:var(--sn)}
+.tab[aria-selected=true].jr{color:var(--jr);border-color:var(--jr)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--jr);outline-offset:2px}
+main{max-width:1100px;margin:auto;padding:18px 20px 40px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+input,select{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:6px;background:var(--sf);color:var(--ink)}
+input{flex:1;min-width:200px}
+.btn{font:600 13px Manrope,system-ui,sans-serif;padding:7px 12px;border-radius:6px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);cursor:pointer}
+.btn.sn{background:var(--sn);border-color:var(--sn);color:#fff}
+.btn.jr{background:var(--jr);border-color:var(--jr);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.sn,:root:not([data-theme="light"]) .btn.jr{color:#0f161d}}
+.wrap{overflow-x:auto;border:1px solid var(--ln);border-radius:8px;background:var(--sf)}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--ln);vertical-align:middle}
+th{font-weight:600;color:var(--mut);font-size:13px}
+tr:last-child td{border-bottom:0}
+.p{display:inline-block;min-width:28px;text-align:center;font-weight:800;border-radius:4px;padding:1px 6px;font-size:13px}
+.p1{background:var(--red);color:#fff}.p2{background:var(--amb);color:#fff}.p3{background:var(--jrb);color:var(--jr)}.p4{background:var(--ln);color:var(--mut)}
+.st{font-weight:600;padding:2px 8px;border-radius:99px;background:var(--snb);color:var(--sn);font-size:13px;white-space:nowrap}
+.lnk{font-weight:600;color:var(--jr);background:var(--jrb);padding:2px 8px;border-radius:4px;font-size:13px;cursor:pointer;border:0}
+.board{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:12px;overflow-x:auto}
+.col{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:10px;min-height:200px}
+.col h3{margin:0 0 10px;font-size:14px;color:var(--mut);display:flex;justify-content:space-between}
+.card{border:1px solid var(--ln);border-left:4px solid var(--jr);border-radius:6px;padding:10px;margin-bottom:8px;background:var(--bg)}
+.card b{color:var(--jr);font-size:13px}.card p{margin:4px 0 8px}
+.card .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sync{margin-top:16px;padding:10px 14px;border-radius:8px;background:var(--sf);border:1px solid var(--ln);color:var(--mut);font-size:14px;min-height:42px}
+.hint{color:var(--mut);font-size:14px;margin:0 0 12px}
+[hidden]{display:none!important}
+.login{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lc{width:100%;max-width:380px;background:var(--sf);border:1px solid var(--ln);border-top:4px solid var(--sn);border-radius:8px;padding:26px}
+.lc h2{margin:0 0 4px;font-size:22px;font-weight:800}
+.lc p{margin:0 0 16px;color:var(--mut);font-size:14px}
+.lc label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+.lc input{width:100%;min-width:0}
+.lc .btn{width:100%;margin-top:18px;padding:10px}
+.err{color:var(--red);font-size:14px;min-height:20px;margin-top:10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.top-r{display:flex;gap:8px;position:relative}
+.tab[aria-selected=true].db{color:var(--ink);border-color:var(--ink)}
+.bc{background:var(--red);color:#fff;border-radius:99px;padding:0 7px;font-size:12px;margin-left:4px}
+.npanel{position:absolute;right:0;top:calc(100% + 8px);z-index:50;width:min(360px,calc(100vw - 40px));background:var(--sf);border:1px solid var(--ln);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.25);padding:4px 12px;max-height:340px;overflow:auto}
+.nitem{padding:8px 0;border-bottom:1px solid var(--ln);font-size:14px;display:flex;gap:10px}
+.nitem.u{font-weight:600}.nitem small{color:var(--mut);margin-left:auto;white-space:nowrap}
+.panel{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:14px}
+.panel h2{margin:0 0 10px;font-size:17px;font-weight:800}
+.hl{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:18px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--ok)}
+.dg{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-top:14px}
+.dg>div{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media(max-width:820px){.dg{grid-template-columns:1fr}}
+.qa{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.qa span{color:var(--mut);font-size:14px}
+tr.sel{background:var(--snb)}
+.stp{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--ln);border-radius:8px;margin-bottom:8px}
+.stp.on{border-color:var(--sn);background:var(--snb)}
+.stp .n{width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;border:1px solid var(--ln);font-weight:800;font-size:13px}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.hmt{border-collapse:separate;border-spacing:4px;width:100%;min-width:0;margin:6px 0}
+.hmt th,.hmt td{padding:0;border:0;text-align:center;font-size:12px;font-weight:600;color:var(--mut)}
+.hmt th[scope=row]{text-align:left;width:32px}
+.hmt td{height:34px;border-radius:6px;font-size:15px;font-weight:800}
+.hmt .c0{background:var(--bg)}.hmt .c1{background:var(--okb);color:var(--ok)}.hmt .c2{background:var(--amb);color:var(--bg)}.hmt .c3{background:var(--red);color:var(--bg)}
+.lg{color:var(--mut);font-size:13px;margin:4px 0 10px}
+.ft{max-width:1100px;margin:0 auto;padding:0 20px 30px;color:var(--mut);font-size:13px}
+.tab{white-space:nowrap}
+.tab[aria-selected=true].kb{color:var(--ink);border-color:var(--ink)}
+.tab[aria-selected=true].cp{color:var(--ink);border-color:var(--ink)}
+.panel+.panel{margin-top:14px}
+.sl{display:inline-block;padding:2px 8px;border-radius:99px;font-weight:600;font-size:13px;white-space:nowrap}
+.sl.ok{background:var(--okb);color:var(--ok)}.sl.warn{background:var(--amb);color:var(--bg)}.sl.bad{background:var(--red);color:var(--bg)}.sl.pa{background:var(--ln);color:var(--mut)}
+.rs{font-size:12px;color:var(--mut);margin-top:3px}.rs.late{color:var(--red);font-weight:600}
+.tab[aria-selected=true].gd{color:var(--ink);border-color:var(--ink)}
+.prog{height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin:6px 0 14px}
+.prog i{display:block;height:100%;background:var(--sn);width:0;transition:width .3s}
+.gn{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sn);color:var(--sf);font-weight:800;font-size:13px}
+.dn{margin-left:auto}
+.panel ul{margin:6px 0 0;padding-left:20px}.panel ul li{margin:5px 0}
+.art{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:10px 14px;margin-bottom:8px}
+.art summary{cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.art ol{margin:10px 0 0;padding-left:22px}.art li{margin:4px 0}
+.ag{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13px}
+.ag .l{width:84px}
+.trk{flex:1;background:var(--bg);border-radius:99px;height:12px;overflow:hidden}
+.trk i{display:block;height:100%;background:var(--jr)}
+</style>
+</head>
+<body>
+<div class="login" id="login">
+<div class="lc">
+<h2>Sign in to SyncDesk</h2>
+<p>Employees only. Demo login: admin / admin.</p>
+<label for="u">Username</label>
+<input id="u" autocomplete="username">
+<label for="pw">Password</label>
+<input id="pw" type="password" autocomplete="current-password">
+<button class="btn sn" id="go">Sign in</button>
+<div class="err" id="err" role="alert"></div>
+</div>
+</div>
+<header id="hd" hidden>
+<div class="top"><h1>SyncDesk</h1><div class="top-r"><div class="bw"><button class="btn" id="bell" aria-label="Notifications" aria-expanded="false" aria-haspopup="true">Alerts<span class="bc" id="bc" hidden>0</span></button><div class="npanel" id="npanel" hidden aria-live="polite"></div></div><button class="btn" id="out">Sign out</button></div></div>
+<p>Run incidents the ServiceNow way and track the engineering work in Jira, in one place. Changes in one side update the other.</p>
+<div class="tabs" role="tablist">
+<button class="tab db" role="tab" id="t0" aria-selected="true" data-v="db">Dashboard</button>
+<button class="tab sn" role="tab" id="t1" aria-selected="false" data-v="sn">Service Desk (ServiceNow)</button>
+<button class="tab jr" role="tab" id="t2" aria-selected="false" data-v="jr">Board (Jira)</button>
+<button class="tab kb" role="tab" id="t3" aria-selected="false" data-v="kb">Knowledge base</button>
+<button class="tab cp" role="tab" id="t4" aria-selected="false" data-v="cp">Change and problem</button>
+<button class="tab gd" role="tab" id="t5" aria-selected="false" data-v="gd">Fresher guide</button>
+</div>
+</header>
+<main id="app" hidden>
+<section id="db">
+<div class="hl"><span class="dot" id="dot"></span><b id="hs">Healthy</b><span style="color:var(--mut);font-size:14px">service health</span></div>
+<div class="panel qa"><b>Quick actions</b><button class="btn" data-qa="Approve">Approve</button><button class="btn" data-qa="Provide info">Provide info</button><button class="btn" data-qa="Schedule time">Schedule time</button><button class="btn" data-qa="Escalate">Escalate</button><button class="btn" data-go2="kb">Search knowledge base</button><span>Selected ticket: <b id="sel">none</b></span></div>
+<div class="dg">
+<div><div class="panel"><h2>Ticket queue</h2>
+<div class="opts" style="margin:0 0 10px"><select id="fs" aria-label="Filter by status"><option value="all">All statuses</option><option>New</option><option>In Progress</option><option>On Hold</option><option>Resolved</option><option>Closed</option></select><select id="fp" aria-label="Filter by priority"><option value="all">All priorities</option><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option></select></div>
+<div class="wrap"><table style="min-width:520px"><thead><tr><th>ID</th><th>Subject</th><th>Status</th><th>Priority</th><th>Age</th><th>SLA</th></tr></thead><tbody id="dq"></tbody></table></div></div></div>
+<div><div class="panel"><h2>New request</h2><div id="wz"></div></div>
+<div class="panel"><h2>SLA heatmap and ticket aging</h2><div class="lg">Open tickets by priority and age. Green is under 70% of the resolve SLA, amber is 70-100%, red has breached. Resolve targets: P1 4h, P2 8h, P3 24h, P4 72h.</div><div id="hm"></div><div id="ag"></div></div></div>
+</div>
+</section>
+<section id="sn" hidden>
+<p class="hint">Incident lifecycle: New, In Progress, On Hold, Resolved, Closed. Use “Raise in Jira” when an incident needs engineering work.</p>
+<div class="bar">
+<input id="nt" placeholder="Describe the issue, e.g. Printer offline on floor 3" aria-label="New incident short description">
+<select id="np" aria-label="Priority"><option value="1">P1 Critical</option><option value="2">P2 High</option><option value="3" selected>P3 Moderate</option><option value="4">P4 Low</option></select>
+<button class="btn sn" id="add">Create incident</button>
+</div>
+<div class="wrap"><table><thead><tr><th>Number</th><th>Short description</th><th>Priority</th><th>State</th><th>SLA</th><th>Jira</th><th>Actions</th></tr></thead><tbody id="tb"></tbody></table></div>
+</section>
+<section id="jr" hidden>
+<p class="hint">Move cards across the board. Done resolves the linked incident; In Progress marks it In Progress.</p>
+<div class="bar">
+<input id="jt" placeholder="New Jira issue, e.g. Patch Windows laptops" aria-label="New Jira issue summary">
+<button class="btn jr" id="jadd">Create issue</button>
+</div>
+<div class="board" id="bd"></div>
+</section>
+<section id="cp" hidden>
+<p class="hint">Changes are planned updates that need approval. Problems find the root cause behind repeat incidents.</p>
+<div class="panel"><h2>Change requests</h2>
+<div class="bar"><input id="ct" placeholder="Change title, e.g. Upgrade Wi-Fi controller" aria-label="Change title"><select id="cty" aria-label="Change type"><option>Standard</option><option selected>Normal</option><option>Emergency</option></select><select id="cr" aria-label="Risk"><option>Low</option><option selected>Medium</option><option>High</option></select><input id="cd" type="date" style="flex:none;min-width:0" aria-label="Planned date"><button class="btn sn" data-cc="1">Create change</button></div>
+<div class="wrap"><table><thead><tr><th>Number</th><th>Change</th><th>Type and risk</th><th>Planned</th><th>State</th></tr></thead><tbody id="cb"></tbody></table></div></div>
+<div class="panel"><h2>Problem records</h2>
+<div class="bar"><input id="pt" placeholder="Problem, e.g. Repeated VPN drops" aria-label="Problem title"><select id="pi" aria-label="Linked incident"></select><button class="btn sn" data-cpn="1">Create problem</button></div>
+<div class="wrap"><table><thead><tr><th>Number</th><th>Problem</th><th>Linked incidents</th><th>State</th></tr></thead><tbody id="pb"></tbody></table></div></div>
+</section>
+<section id="gd" hidden>
+<p class="hint">New to IT support? Follow these ten steps in order. Each one takes a few minutes and teaches a real service desk habit. Tick each step when you finish it.</p>
+<div class="panel"><b id="gt"></b><div class="prog"><i id="gp"></i></div><div id="gl"></div></div>
+<div class="panel"><h2>Key terms</h2><div class="wrap"><table style="min-width:0"><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><b>Incident</b></td><td>Something is broken or not working for a user, such as VPN not connecting.</td></tr>
+<tr><td><b>Service request</b></td><td>A user asks for something new, such as a laptop or access to a folder.</td></tr>
+<tr><td><b>Problem</b></td><td>The underlying cause behind one or more repeat incidents.</td></tr>
+<tr><td><b>Change</b></td><td>A planned update to a system. It needs approval before it is carried out.</td></tr>
+<tr><td><b>Priority (P1 to P4)</b></td><td>How urgent a ticket is. P1 is Critical and affects many people or a key service. P4 is Low.</td></tr>
+<tr><td><b>SLA</b></td><td>The promised time to respond to and resolve a ticket.</td></tr>
+<tr><td><b>L1 and L2</b></td><td>L1 agents take the first call and fix common issues. L2 or developers handle deeper technical work.</td></tr>
+<tr><td><b>Escalation</b></td><td>Passing a ticket to a more specialist team when you cannot fix it yourself.</td></tr>
+<tr><td><b>Workaround</b></td><td>A temporary way to keep working until the real fix is ready.</td></tr>
+<tr><td><b>Resolved and Closed</b></td><td>Resolved means a fix was applied. Closed means the user confirmed it, or the ticket was finished.</td></tr>
+</tbody></table></div></div>
+<div class="panel"><h2>Good habits for freshers</h2><ul>
+<li>Check the knowledge base before you start troubleshooting.</li>
+<li>Ask what changed, when it started, who is affected and what the exact error says.</li>
+<li>Set priority by impact (how many people) and urgency (how soon it matters).</li>
+<li>Write clear notes so the next person can continue without asking again.</li>
+<li>Keep the user updated, and escalate early when you are stuck instead of waiting for the SLA to run out.</li>
+</ul></div>
+</section>
+<section id="kb" hidden>
+<p class="hint">Fixes for common problems. Follow the steps in order, and raise an incident if the problem remains.</p>
+<div class="bar"><input id="ks" placeholder="Search, e.g. VPN, printer, password" aria-label="Search knowledge base"><select id="kc" aria-label="Category"><option value="all">All categories</option><option>Network</option><option>Hardware</option><option>Accounts</option><option>Software</option></select></div>
+<div id="kn" class="hint" role="status"></div>
+<div id="kl"></div>
+</section>
+<div class="sync" id="log" role="status" aria-live="polite">Everything is in sync.</div>
+</main>
+<footer class="ft">SyncDesk is an independent demo project by Carlton Anthony Prakash that simulates ServiceNow-style incident handling and Jira-style issue tracking. It is not affiliated with or connected to ServiceNow or Atlassian, and all tickets shown are sample data.</footer>
+<script>
+const STATES=['New','In Progress','On Hold','Resolved','Closed'],COLS=['To Do','In Progress','In Review','Done'];
+let n=10233,k=16;
+const INC=[
+{id:'INC0010231',t:'VPN drops every 10 minutes for remote users',p:2,s:'In Progress',j:'SD-14'},
+{id:'INC0010232',t:'New joiner needs laptop and email set up',p:3,s:'New',j:null}];
+const JIRA=[
+{k:'SD-14',t:'Fix VPN keepalive on gateway',c:'In Progress',inc:'INC0010231'},
+{k:'SD-15',t:'Roll out Teams update to Finance',c:'To Do',inc:null}];
+const NT=[];
+const $=s=>document.querySelector(s),log=m=>{$('#log').textContent=m;if(!/^(Enter|Signed|Select|Change must)/.test(m))notify(m)};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function draw(){
+sync();dash();cm();
+$('#tb').innerHTML=INC.map(i=>`<tr><td><b>${i.id}</b></td><td>${esc(i.t)}</td><td><span class="p p${i.p}">P${i.p}</span></td><td><span class="st">${i.s}</span></td><td data-sla="${i.id}">${slh(i)}</td><td>${i.j?`<button class="lnk" data-go="${i.j}">${i.j}</button>`:'-'}</td><td><select data-st="${i.id}" aria-label="Change state of ${i.id}">${STATES.map(s=>`<option${s==i.s?' selected':''}>${s}</option>`).join('')}</select> ${i.j?'':`<button class="btn" data-raise="${i.id}">Raise in Jira</button>`}</td></tr>`).join('');
+$('#bd').innerHTML=COLS.map((c,ci)=>`<div class="col"><h3>${c}<span>${JIRA.filter(x=>x.c==c).length}</span></h3>${JIRA.filter(x=>x.c==c).map(x=>`<div class="card"><b>${x.k}</b><p>${esc(x.t)}</p><div class="row">${x.inc?`<span class="st">${x.inc}</span>`:''}${ci>0?`<button class="btn" data-mv="${x.k}" data-d="-1" aria-label="Move ${x.k} back">&larr;</button>`:''}${ci<3?`<button class="btn" data-mv="${x.k}" data-d="1" aria-label="Move ${x.k} forward">&rarr;</button>`:''}</div></div>`).join('')}</div>`).join('');
+}
+function view(v){['db','sn','jr','kb','cp','gd'].forEach(x=>{$('#'+x).hidden=x!=v});document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.v==v))}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>view(t.dataset.v));
+function raise(id){const i=INC.find(x=>x.id==id);const key='SD-'+(k++);i.j=key;JIRA.push({k:key,t:i.t,c:'To Do',inc:id});log(`${id} raised in Jira as ${key} (To Do).`);draw()}
+$('#add').onclick=()=>{const t=$('#nt').value.trim();if(!t){log('Enter a short description first.');return}
+const id='INC00'+(n++);INC.unshift({id,t,p:+$('#np').value,s:'New',j:null,at:Date.now()});$('#nt').value='';log(`${id} created in state New.`);draw()};
+$('#jadd').onclick=()=>{const t=$('#jt').value.trim();if(!t){log('Enter an issue summary first.');return}
+const key='SD-'+(k++);JIRA.push({k:key,t,c:'To Do',inc:null});$('#jt').value='';log(`${key} created in To Do.`);draw()};
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+if(b.dataset.raise)raise(b.dataset.raise);
+if(b.dataset.go){view('jr')}
+if(b.dataset.mv){const x=JIRA.find(y=>y.k==b.dataset.mv);x.c=COLS[COLS.indexOf(x.c)+ +b.dataset.d];let m=`${x.k} moved to ${x.c}.`;
+const i=INC.find(y=>y.id==x.inc);if(i){if(x.c=='Done'){i.s='Resolved';m+=` ${i.id} set to Resolved.`}else if(x.c=='In Progress'){i.s='In Progress';m+=` ${i.id} set to In Progress.`}}log(m);draw()}});
+document.addEventListener('change',e=>{const s=e.target.dataset.st;if(!s)return;const i=INC.find(y=>y.id==s);i.s=e.target.value;let m=`${s} is now ${i.s}.`;
+const x=JIRA.find(y=>y.k==i.j);if(x){if(i.s=='Resolved'||i.s=='Closed'){x.c='Done';m+=` ${x.k} moved to Done.`}else if(i.s=='In Progress'&&x.c=='To Do'){x.c='In Progress';m+=` ${x.k} moved to In Progress.`}}log(m);draw()});
+function gate(on){$('#login').hidden=on;$('#hd').hidden=!on;$('#app').hidden=!on;if(!on){$('#u').value='';$('#pw').value='';$('#err').textContent=''}}
+function signin(){if($('#u').value.trim()==='admin'&&$('#pw').value==='admin'){try{sessionStorage.setItem('od','1')}catch(e){}gate(true);log('Signed in as admin.')}else{$('#err').textContent='Username or password is incorrect. Try again.';$('#pw').value=''}}
+let SEL=null,W={c:null,r:null};
+const CAT={'User onboarding':['New laptop and email','Add to groups'],'Access change':['Grant access','Remove access'],'Network':['VPN issue','Wi-Fi issue'],'Hardware':['Printer problem','Laptop repair']};
+const isOpen=i=>i.s!='Resolved'&&i.s!='Closed';
+const age=m=>m<60?Math.max(m,1)+'m':m<1440?Math.floor(m/60)+'h':Math.floor(m/1440)+'d';
+INC.forEach((i,x)=>i.at=Date.now()-[58,7200][x]*60000);
+function notify(m){NT.unshift({m,t:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),u:1});nd()}
+function nd(){const u=NT.filter(x=>x.u).length;$('#bc').textContent=u;$('#bc').hidden=!u;$('#npanel').innerHTML=NT.length?'<div class="nitem" style="align-items:center;justify-content:space-between"><b>Notifications</b><button class="btn" id="mr">Mark all read</button></div>'+NT.map(x=>`<div class="nitem${x.u?' u':''}"><span>${esc(x.m)}</span><small>${x.t}</small></div>`).join(''):'<div class="nitem">No notifications yet. New and updated tickets will appear here.</div>'}
+function addInc(t,p){const id='INC00'+(n++);INC.unshift({id,t,p,s:'New',j:null,at:Date.now()});log(`${id} raised: ${t} (P${p}).`);draw()}
+function dash(){
+const fs=$('#fs').value,fp=$('#fp').value;
+const L=INC.filter(i=>(fs=='all'||i.s==fs)&&(fp=='all'||i.p==fp));
+$('#dq').innerHTML=L.length?L.map(i=>`<tr class="${SEL==i.id?'sel':''}"><td><button class="btn" data-sel="${i.id}" aria-pressed="${SEL==i.id}">${i.id}</button></td><td>${esc(i.t)}</td><td><span class="st">${i.s}</span></td><td><span class="p p${i.p}">P${i.p}</span></td><td>${age(Math.round((Date.now()-i.at)/60000))}</td><td data-sla="${i.id}">${slh(i)}</td></tr>`).join(''):'<tr><td colspan="6">No tickets match these filters.</td></tr>';
+const op=INC.filter(isOpen),p1=op.some(i=>i.p==1);
+$('#hs').textContent=p1?'Critical incident open':op.length>4?'Busy':'Healthy';
+$('#dot').style.background=p1?'var(--red)':op.length>4?'var(--amb)':'var(--ok)';
+$('#sel').textContent=SEL||'none';
+const TG={1:240,2:480,3:1440,4:4320},CL=[['Under 1h',0,60],['1-4h',60,240],['4-24h',240,1440],['1-3d',1440,4320],['Over 3d',4320,1e9]];
+$('#hm').innerHTML='<table class="hmt"><thead><tr><th></th>'+CL.map(c=>`<th scope="col">${c[0]}</th>`).join('')+'</tr></thead><tbody>'+[1,2,3,4].map(p=>`<tr><th scope="row">P${p}</th>`+CL.map(([l,lo,hi])=>{const T=op.filter(i=>{const m=(Date.now()-i.at)/60000;return i.p==p&&m>=lo&&m<hi});const w=T.reduce((a,i)=>{const r=(Date.now()-i.at)/60000/TG[p];return Math.max(a,r>=1?3:r>=.7?2:1)},0);return `<td class="c${w}" aria-label="P${p}, ${l}: ${T.length} open">${T.length||''}</td>`}).join('')+'</tr>').join('')+'</tbody></table>';
+const B=[['0-2 days',m=>m<2880],['3-7 days',m=>m>=2880&&m<10080],['Over 7 days',m=>m>=10080]],ms=op.map(i=>(Date.now()-i.at)/60000);
+$('#ag').innerHTML=B.map(([l,f])=>{const pc=ms.length?Math.round(ms.filter(f).length/ms.length*100):0;return `<div class="ag"><span class="l">${l}</span><div class="trk"><i style="width:${pc}%"></i></div><span>${pc}%</span></div>`}).join('')}
+function wz(){const s=!W.c?1:!W.r?2:3;
+const row=(n,t,on,body)=>`<div class="stp${on?' on':''}"><span class="n">${n}</span><div style="flex:1;min-width:0"><div>${t}</div>${on?body:''}</div></div>`;
+$('#wz').innerHTML=row(1,W.c||'Choose a category',s==1,`<div class="opts">${Object.keys(CAT).map(c=>`<button class="btn" data-cat="${c}">${c}</button>`).join('')}</div>`)+row(2,W.r||'Select a request',s==2,`<div class="opts">${(CAT[W.c]||[]).map(r=>`<button class="btn" data-req="${r}">${r}</button>`).join('')}<button class="btn" data-back="1">Back</button></div>`)+row(3,'Details and submit',s==3,`<div class="opts"><input id="wd" placeholder="Add details, e.g. Alice T. starts Monday" aria-label="Request details"><select id="wp" aria-label="Priority"><option value="3">P3 Moderate</option><option value="2">P2 High</option><option value="4">P4 Low</option><option value="1">P1 Critical</option></select></div><div class="opts"><button class="btn sn" data-sub="1">Submit request</button><button class="btn" data-back="1">Back</button></div>`)}
+$('#fs').onchange=$('#fp').onchange=dash;
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+if(d.sel){SEL=SEL==d.sel?null:d.sel;dash()}
+if(d.qa){const i=INC.find(x=>x.id==SEL);if(!i){log('Select a ticket in the queue first.');return}
+if(d.qa=='Approve')i.s='In Progress';else if(d.qa=='Schedule time')i.s='On Hold';else if(d.qa=='Escalate')i.p=1;
+log({'Approve':`${i.id} approved and set to In Progress.`,'Provide info':`Extra information added to ${i.id}.`,'Schedule time':`${i.id} scheduled and put On Hold.`,'Escalate':`${i.id} escalated to P1 Critical.`}[d.qa]);draw()}
+if(d.cat){W.c=d.cat;wz()}if(d.req){W.r=d.req;wz()}
+if(d.back){if(W.r)W.r=null;else W.c=null;wz()}
+if(d.sub){const x=$('#wd').value.trim();addInc(`${W.r}${x?': '+x:''}`,+$('#wp').value);W={c:null,r:null};wz()}
+if(b.id=='bell'){const h=!$('#npanel').hidden;$('#npanel').hidden=h;b.setAttribute('aria-expanded',String(!h))}
+if(b.id=='mr'){NT.forEach(x=>x.u=0);nd()}
+if(d.hl){KH[d.hl]=(KH[d.hl]||0)+1;b.textContent=`Helpful (${KH[d.hl]})`}
+if(d.ki){const a=KB.find(x=>x[0]==d.ki);addInc(`Not resolved by ${a[0]}: ${a[2]}`,3)}
+if(d.go2)view(d.go2);
+if(d.cc){const t=$('#ct').value.trim();if(!t){log('Enter a change title first.');return}const id='CHG'+String(CHG.length+1).padStart(4,'0');CHG.push({id,t,ty:$('#cty').value,r:$('#cr').value,s:'Draft',d:$('#cd').value||'TBC'});$('#ct').value='';log(`${id} created as Draft (${$('#cty').value} change, ${$('#cr').value} risk).`);cm()}
+if(d.cpn){const t=$('#pt').value.trim();if(!t){log('Enter a problem title first.');return}const id='PRB'+String(PRB.length+1).padStart(4,'0'),l=$('#pi').value;PRB.push({id,t,s:'New',inc:l?[l]:[]});$('#pt').value='';log(`${id} opened${l?' for '+l:''}.`);cm()}});
+const SLA={1:[15,240],2:[30,480],3:[120,1440],4:[240,4320]};
+const fm=m=>{m=Math.abs(Math.round(m));return m>=1440?Math.floor(m/1440)+'d '+Math.floor(m%1440/60)+'h':m>=60?Math.floor(m/60)+'h '+m%60+'m':m+'m'};
+const el=i=>((i.rs||Date.now())-i.at-(i.pa||0)-(i.ps?Date.now()-i.ps:0))/60000;
+function sync(){const now=Date.now();INC.forEach(i=>{
+if(i.ls===undefined){i.ls=i.s;i.pa=0;i.ps=null;i.rs=null;i.rt=i.s=='New'?null:i.at+10*60000}
+if(i.s!==i.ls){if(i.ls=='On Hold'&&i.ps){i.pa+=now-i.ps;i.ps=null}
+if(i.s=='On Hold')i.ps=now;
+if(!i.rt&&i.s!='New')i.rt=now;
+if(!isOpen(i)&&!i.rs)i.rs=now;
+if(isOpen(i)&&i.rs)i.rs=null;
+i.ls=i.s}})}
+function slh(i){const T=SLA[i.p],e=el(i);
+if(!isOpen(i)){const ok=e<=T[1];return `<span class="sl ${ok?'ok':'bad'}">${ok?'Met':'Missed'}</span>`}
+if(i.ps)return '<span class="sl pa">Paused</span>';
+const r=e/T[1],c=r>=1?'bad':r>=.7?'warn':'ok';
+let h=`<span class="sl ${c}">${r>=1?'Breached '+fm(e-T[1])+' ago':fm(T[1]-e)+' left'}</span>`;
+if(!i.rt){const re=(Date.now()-i.at)/60000,late=re>T[0];h+=`<div class="rs${late?' late':''}">${late?'Response overdue '+fm(re-T[0]):'Respond in '+fm(T[0]-re)}</div>`}
+return h}
+setInterval(()=>{INC.filter(isOpen).forEach(i=>{if(i.ps||i.ls===undefined)return;const T=SLA[i.p],r=el(i)/T[1];
+if(r>=1){if(!i.nb){i.nb=i.n8=1;notify(`${i.id} has breached its resolve SLA.`)}}else if(r>=.8&&!i.n8){i.n8=1;notify(`${i.id} has used 80% of its resolve SLA.`)}
+if(!i.rt&&!i.nr&&(Date.now()-i.at)/60000>T[0]){i.nr=1;notify(`${i.id} has breached its response SLA.`)}});
+document.querySelectorAll('[data-sla]').forEach(c=>{const i=INC.find(x=>x.id==c.dataset.sla);if(i)c.innerHTML=slh(i)})},1000);
+const GD=[
+['Sign in and look around','A service desk starts from one screen that shows health and the work waiting.',['Sign in with admin and admin.','Read the service health line at the top. It turns red when a Critical (P1) incident is open.','Look at the ticket queue. Each ticket has an SLA countdown, which is the time left to fix it.'],'db','Open Dashboard'],
+['Raise your first request','Employees raise tickets, and the details they give decide how fast the desk can help.',['In New request, choose a category, then a request.','Add a short detail, pick a priority, and press Submit request.','Open the Alerts dropdown. You should see a notification for the new ticket.'],'db','Open Dashboard'],
+['Understand priority and SLA','Priority sets how fast a ticket must be answered and fixed.',['Open the Service Desk tab and find the SLA column.','Compare a P1 ticket (4 hour resolve target) with a P4 ticket (72 hours).','Notice the colors: green is under 70% of the time, amber is 70 to 100%, red is breached.'],'sn','Open Service Desk'],
+['Work the ticket as L1','The L1 agent takes ownership, updates the state and keeps the user informed.',['Change your new ticket from New to In Progress using the State dropdown.','Watch the small Respond line disappear, because you have now responded.','Set it to On Hold and see the SLA say Paused. Waiting for a user should not count against you.'],'sn','Open Service Desk'],
+['Search the knowledge base','Many incidents already have a known fix, so searching first saves time.',['Search for VPN or printer.','Open an article and follow its steps in order.','Press Helpful if it worked. If not, press Still not fixed to raise an incident.'],'kb','Open Knowledge base'],
+['Escalate to Jira','When an incident needs a developer, you raise a linked issue instead of copying details by hand.',['On the Service Desk tab, press Raise in Jira on a ticket.','Note the Jira key that appears in the Jira column, for example SD-16.','Check Alerts to see the escalation notification.'],'sn','Open Service Desk'],
+['Move the card on the Board','Developers track their work as cards, and their progress should reach the user.',['Open the Board tab and find your new card in To Do.','Move it right to In Progress, then check that the incident is also In Progress.','Move it to Done and check that the incident becomes Resolved.'],'jr','Open Board'],
+['Resolve and close the ticket','A good desk confirms the fix with the user before closing.',['Go back to the Service Desk tab and look at your ticket.','Notice the SLA now says Met or Missed instead of a countdown.','Set the state to Closed once the user would confirm the fix.'],'sn','Open Service Desk'],
+['Open a problem record','If the same issue keeps coming back, find the root cause instead of fixing symptoms again and again.',['Open the Change and problem tab.','In Problem records, type a title and pick a linked incident, then press Create problem.','Link a second incident from the row dropdown to show the pattern.'],'cp','Open Change and problem'],
+['Plan a change','Updates to live systems must be approved first so they do not cause new outages.',['In Change requests, create a change and choose its type and risk.','Try to set it straight to Implemented. The site will stop you, because it must be Approved first.','Move it to Awaiting approval, then Approved, then Implemented, then Closed.'],'cp','Open Change and problem']];
+const GS=new Set();
+function gdp(){$('#gp').style.width=GS.size/GD.length*100+'%';$('#gt').textContent=GS.size+' of '+GD.length+' steps done'}
+function gdr(){$('#gl').innerHTML=GD.map((g,i)=>`<details class="art"><summary><span class="gn">${i+1}</span> <b>${g[0]}</b><span class="st dn" id="gs${i}" hidden>Done</span></summary><p class="hint" style="margin-top:10px">${g[1]}</p><ol>${g[2].map(a=>`<li>${a}</li>`).join('')}</ol><div class="opts"><button class="btn sn" data-go2="${g[3]}">${g[4]}</button><button class="btn" data-gd="${i}">Mark step done</button></div></details>`).join('');gdp()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-gd]');if(!b)return;const i=+b.dataset.gd;if(GS.has(i))GS.delete(i);else GS.add(i);b.textContent=GS.has(i)?'Mark as not done':'Mark step done';$('#gs'+i).hidden=!GS.has(i);gdp()});
+gdr();
+const CS=['Draft','Awaiting approval','Approved','Implemented','Closed','Rejected'],PS=['New','Root cause analysis','Known error','Resolved'];
+const CHG=[{id:'CHG0001',t:'Patch VPN gateway firmware',ty:'Normal',r:'Medium',s:'Awaiting approval',d:'2026-10-24'}];
+const PRB=[{id:'PRB0001',t:'Recurring VPN gateway keepalive failures',s:'Root cause analysis',inc:['INC0010231']}];
+$('#cd').value=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
+function cm(){const io=INC.map(i=>`<option>${i.id}</option>`).join('');
+$('#pi').innerHTML='<option value="">No linked incident</option>'+io;
+$('#cb').innerHTML=CHG.map(c=>`<tr><td><b>${c.id}</b></td><td>${esc(c.t)}</td><td>${c.ty}, ${c.r} risk</td><td>${c.d}</td><td><select data-chs="${c.id}" aria-label="State of ${c.id}">${CS.map(s=>`<option${s==c.s?' selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('');
+$('#pb').innerHTML=PRB.map(p=>`<tr><td><b>${p.id}</b></td><td>${esc(p.t)}</td><td>${p.inc.join(', ')||'None yet'}<br><select data-pl="${p.id}" aria-label="Link incident to ${p.id}"><option value="">Link incident...</option>${io}</select></td><td><select data-ps="${p.id}" aria-label="State of ${p.id}">${PS.map(s=>`<option${s==p.s?' selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')}
+document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
+if(d.chs){const c=CHG.find(x=>x.id==d.chs);if(t.value=='Implemented'&&c.s!='Approved'){log('Change must be Approved before it is implemented.');cm();return}c.s=t.value;log(`${c.id} is now ${c.s}.`);cm()}
+if(d.ps){const p=PRB.find(x=>x.id==d.ps);p.s=t.value;log(`${p.id} is now ${p.s}.`+(p.s=='Resolved'&&p.inc.length?` Review linked incidents: ${p.inc.join(', ')}.`:''));cm()}
+if(d.pl&&t.value){const p=PRB.find(x=>x.id==d.pl);if(!p.inc.includes(t.value)){p.inc.push(t.value);log(`${t.value} linked to ${p.id}.`)}cm()}});
+const KH={},KB=[
+['KB0001','Network','VPN keeps disconnecting',['Check the internet works without the VPN, for example by opening a website.','Close the VPN client fully and open it again.','Switch to another network, or try a phone hotspot, to rule out your Wi-Fi.','Update the VPN client, then restart the laptop.','If it still drops, raise an incident with the error message and the time it happened.']],
+['KB0002','Network','Wi-Fi connected but no internet',['Turn Wi-Fi off and on, then forget the network and join it again.','Check the date and time on the device are correct.','On Windows, run ipconfig /release, then ipconfig /renew, then ipconfig /flushdns.','Try another device on the same network to see if the router is the problem.','Raise an incident if other devices also have no internet.']],
+['KB0003','Hardware','Printer shows offline',['Check the printer is on and connected by cable or to the same network.','Open the printer queue and make sure Use Printer Offline is not ticked.','Restart the Print Spooler service, or restart the computer.','Remove the printer and add it again.','Raise an incident with the printer name and location if it stays offline.']],
+['KB0004','Accounts','Forgot password or account locked',['Use the self-service password reset page if your organisation has one.','Check Caps Lock and that you are using the right username.','If the account is locked, wait for the lockout period set by your organisation, then try again.','Make sure your multi-factor prompt is going to the right phone.','Raise an incident. The service desk must verify your identity before resetting access.']],
+['KB0005','Software','Outlook not syncing',['Check the internet connection and that Work Offline is switched off.','Close and reopen Outlook.','Check whether the mailbox is full.','Try webmail to confirm the mailbox itself works.','Create a new Outlook profile, or raise an incident if webmail also fails.']],
+['KB0006','Hardware','Laptop running slow',['Restart the laptop and install pending updates.','Open Task Manager and look for apps using lots of CPU, memory or disk.','Turn off startup apps you do not need.','Free up disk space by removing large unused files.','Run a security scan, and raise an incident if it is still slow.']],
+['KB0007','Software','Application crashes on login',['Note the exact error message and the time it happens.','Restart the computer and try again.','Clear the app cache, or reinstall the app.','Try the same login on another computer to see if it is the account or the device.','Raise an incident with the details. If it affects many users, escalate it to Jira for a developer fix.']],
+['KB0008','Software','Teams camera or microphone not working',['Check camera and microphone permissions in the device privacy settings.','In Teams settings, choose the correct camera and microphone.','Close other apps that may be using the camera.','Restart Teams and update the device drivers.','Raise an incident if the device is not detected at all.']]];
+function kbd(){const q=$('#ks').value.toLowerCase().trim(),c=$('#kc').value;
+const L=KB.filter(a=>(c=='all'||a[1]==c)&&(a[2]+' '+a[3].join(' ')).toLowerCase().includes(q));
+$('#kn').textContent=L.length+(L.length==1?' article':' articles');
+$('#kl').innerHTML=L.length?L.map(a=>`<details class="art"><summary><b>${a[0]}</b> ${esc(a[2])} <span class="st">${a[1]}</span></summary><ol>${a[3].map(s=>`<li>${esc(s)}</li>`).join('')}</ol><div class="opts"><button class="btn" data-hl="${a[0]}">Helpful (${KH[a[0]]||0})</button><button class="btn sn" data-ki="${a[0]}">Still not fixed? Raise an incident</button></div></details>`).join(''):'<p class="hint">No articles match. Try different words, or raise an incident.</p>'}
+$('#ks').oninput=$('#kc').onchange=kbd;kbd();
+function cn(){$('#npanel').hidden=true;$('#bell').setAttribute('aria-expanded','false')}
+document.addEventListener('click',e=>{if(!e.composedPath().some(x=>x.id=='npanel'||x.id=='bell'))cn()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cn()});
+nd();wz();
+$('#go').onclick=signin;
+['u','pw'].forEach(id=>$('#'+id).addEventListener('keydown',e=>{if(e.key==='Enter')signin()}));
+$('#out').onclick=()=>{try{sessionStorage.removeItem('od')}catch(e){}gate(false)};
+try{if(sessionStorage.getItem('od')==='1')gate(true)}catch(e){}
+draw();
+</script>
+</body>
+</html>
